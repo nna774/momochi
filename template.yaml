@@ -1,0 +1,62 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  momochi
+  
+  Sample SAM Template for momochi
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 5
+
+Resources:
+  Function:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      Handler: momochi
+      Runtime: go1.x
+      Tracing: Active # https://docs.aws.amazon.com/lambda/latest/dg/lambda-x-ray.html
+      Events:
+        Root:
+          Type: Api
+          Properties:
+            Path: /
+            Method: any
+        CatchAll:
+          Type: Api
+          Properties:
+            Path: /{proxy+}
+            Method: any
+      Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
+        Variables:
+          DYNAMODB_TABLE: !Ref Table
+          DYNAMODB_MGMT_TABLE: !Ref MgmtTable
+  Table:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      TableName: home-atmosphere
+      PrimaryKey:
+        Name: time
+        Type: Number
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+  MgmtTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      TableName: home-atmosphere-mgmt
+      PrimaryKey:
+        Name: id
+        Type: String
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+
+Outputs:
+  API:
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+  Function:
+    Value: !GetAtt Function.Arn
+  FunctionIamRole:
+    Value: !GetAtt FunctionRole.Arn
