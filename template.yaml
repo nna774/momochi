@@ -28,8 +28,16 @@ Resources:
           Properties:
             Path: /{proxy+}
             Method: any
+      Policies:
+        - DynamoDBCrudPolicy:
+           TableName: !Ref Table
+        - DynamoDBCrudPolicy:
+           TableName: !Ref MgmtTable
       Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
         Variables:
+          HOST_ID: XXXXX
+          API_KEY: XXXXX
+          DYNAMODB_ENDPOINT: ""
           DYNAMODB_TABLE: !Ref Table
           DYNAMODB_MGMT_TABLE: !Ref MgmtTable
   Table:
