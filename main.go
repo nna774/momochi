@@ -52,17 +52,27 @@ func table(name string) dynamo.Table {
 	return db.Table(name)
 }
 
-func notifyToMackerel(co2 Co2) error {
-	body := []map[string]interface{}{
+type mackerel struct {
+	HostID string `json:"hostId"`
+	Name   string `json:"name"`
+	Time   int64  `json:"time"`
+	Value  int    `json:"value"`
+}
+
+func co2NotifyToMackerel(co2 Co2) error {
+	return notifyToMackerel([]mackerel{
 		{
-			"hostId": HostID,
-			"name":   "custom.co2.ppm",
-			"time":   co2.Time,
-			"value":  co2.PPM,
+			HostID: HostID,
+			Name:   "custom.co2.ppm",
+			Time:   co2.Time,
+			Value:  co2.PPM,
 		},
-	}
+	})
+}
+
+func notifyToMackerel(vals []mackerel) error {
 	var buf bytes.Buffer
-	err := json.NewEncoder(&buf).Encode(body)
+	err := json.NewEncoder(&buf).Encode(vals)
 	if err != nil {
 		return err
 	}
@@ -120,7 +130,7 @@ func co2AddHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "mgmt put failed: %v", err)
 		return
 	}
-	err = notifyToMackerel(co2)
+	err = co2NotifyToMackerel(co2)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "mackerel put failed: %v", err)
