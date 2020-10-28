@@ -149,22 +149,26 @@ func putMgmtValue(id string, time int64) error {
 	return table(mgmtTable).Put(m).Run()
 }
 
-func co2LastHandler(w http.ResponseWriter, r *http.Request) {
+func lastHandler(w http.ResponseWriter, r *http.Request, id string, value interface{}) {
 	m := MgmtLastValue{}
-	err := table(mgmtTable).Get("id", Co2MgmtID).One(&m)
+	err := table(mgmtTable).Get("id", id).One(&m)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "mgmt get failed: %v", err)
 		return
 	}
-	var co2 Co2
-	err = table(dataTable).Get("time", m.Time).One(&co2)
+	err = table(dataTable).Get("time", m.Time).One(&value)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "value get failed: %v", err)
 		return
 	}
-	json.NewEncoder(w).Encode(co2)
+	json.NewEncoder(w).Encode(value)
+}
+
+func co2LastHandler(w http.ResponseWriter, r *http.Request) {
+	var co2 Co2
+	lastHandler(w, r, Co2MgmtID, co2)
 }
 
 func main() {
