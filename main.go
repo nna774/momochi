@@ -129,8 +129,7 @@ func co2AddHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "value put failed: %v", err)
 		return
 	}
-	m := MgmtLastValue{ID: Co2MgmtID, Time: t}
-	err = table(mgmtTable).Put(m).Run()
+	err = putMgmtValue(Co2MgmtID, t)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "mgmt put failed: %v", err)
@@ -144,6 +143,12 @@ func co2AddHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Fprint(w, "ok\n")
 }
+
+func putMgmtValue(id string, time int64) error {
+	m := MgmtLastValue{ID: id, Time: time}
+	return table(mgmtTable).Put(m).Run()
+}
+
 func co2LastHandler(w http.ResponseWriter, r *http.Request) {
 	m := MgmtLastValue{}
 	err := table(mgmtTable).Get("id", Co2MgmtID).One(&m)
