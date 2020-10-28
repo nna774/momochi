@@ -21,22 +21,28 @@ var (
 	dataTable = os.Getenv("DYNAMODB_TABLE")
 	mgmtTable = os.Getenv("DYNAMODB_MGMT_TABLE")
 
+	// HostID is mackerel Host ID
 	HostID = os.Getenv("HOST_ID")
+	// APIKey is mackerel API Key
 	APIKey = os.Getenv("API_KEY")
 
 	mackerelEndpoint = "https://mackerel.io/api/v0/tsdb"
 )
 
 const (
+	// TypeCo2 is type of co2
 	TypeCo2   = "co2"
+	// Co2MgmtID is manegement id fo co2
 	Co2MgmtID = "co2-latest"
 )
 
+// MgmtLastValue is last value of id
 type MgmtLastValue struct {
 	ID   string `json:"id" dynamo:"id"`
 	Time int64  `json:"time" dynamo:"time"`
 }
 
+// Co2 is co2 value
 type Co2 struct {
 	Time int64  `json:"time" dynamo:"time"`
 	Type string `json:"type" dynamo:"type"`
