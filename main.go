@@ -29,11 +29,19 @@ var (
 	mackerelEndpoint = "https://mackerel.io/api/v0/tsdb"
 )
 
+// Type is type of value
+type Type string
+
 const (
 	// TypeCo2 is type of co2
-	TypeCo2   = "co2"
-	// Co2MgmtID is manegement id fo co2
+	TypeCo2 Type = "co2"
+	// Co2MgmtID is manegement id of co2
 	Co2MgmtID = "co2-latest"
+
+	// TypeTemp is type of temp
+	TypeTemp Type = "temperature"
+	// TempMgmtID is manegement id of temp
+	TempMgmtID = "temperature-latest"
 )
 
 // MgmtLastValue is last value of id
@@ -44,9 +52,13 @@ type MgmtLastValue struct {
 
 // Co2 is co2 value
 type Co2 struct {
-	Time int64  `json:"time" dynamo:"time"`
-	Type string `json:"type" dynamo:"type"`
-	PPM  int    `json:"co2" dynamo:"co2"`
+	Time int64 `json:"time" dynamo:"time"`
+	Type Type  `json:"type" dynamo:"type"`
+	PPM  int   `json:"co2" dynamo:"co2"`
+}
+
+type Temp struct {
+
 }
 
 func table(name string) dynamo.Table {
@@ -149,7 +161,7 @@ func putMgmtValue(id string, time int64) error {
 	return table(mgmtTable).Put(m).Run()
 }
 
-func lastHandler(w http.ResponseWriter, r *http.Request, id string, value interface{}) {
+func lastHandler(w http.ResponseWriter, r *http.Request, id string) {
 	m := MgmtLastValue{}
 	err := table(mgmtTable).Get("id", id).One(&m)
 	if err != nil {
@@ -157,7 +169,22 @@ func lastHandler(w http.ResponseWriter, r *http.Request, id string, value interf
 		fmt.Fprintf(w, "mgmt get failed: %v", err)
 		return
 	}
-	err = table(dataTable).Get("time", m.Time).One(&value)
+
+	item := table(dataTable).Get("time", m.Time)
+	var value interface{}
+	switch id {
+	case Co2MgmtID:
+		var co2 Co2
+		err = item.One(&co2)
+		value = co2
+	case TempMgmtID:
+		var temp Temp
+		err = item.One(&temp)
+		value = temp
+	default:
+		err = fmt.Errorf("Never come!(lastHandler)")
+	}
+	
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "value get failed: %v", err)
@@ -167,8 +194,7 @@ func lastHandler(w http.ResponseWriter, r *http.Request, id string, value interf
 }
 
 func co2LastHandler(w http.ResponseWriter, r *http.Request) {
-	var co2 Co2
-	lastHandler(w, r, Co2MgmtID, co2)
+	lastHandler(w, r, Co2MgmtID)
 }
 
 func main() {
