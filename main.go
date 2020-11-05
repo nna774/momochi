@@ -18,7 +18,8 @@ import (
 
 var (
 	endpoint  = os.Getenv("DYNAMODB_ENDPOINT")
-	dataTable = os.Getenv("DYNAMODB_TABLE")
+	co2Table  = os.Getenv("DYNAMODB_TABLE")
+	tempTable = os.Getenv("DYNAMODB_TEMP_TABLE")
 	mgmtTable = os.Getenv("DYNAMODB_MGMT_TABLE")
 
 	// HostID is mackerel Host ID
@@ -50,15 +51,23 @@ type MgmtLastValue struct {
 	Time int64  `json:"time" dynamo:"time"`
 }
 
-// Co2 is co2 value
-type Co2 struct {
+// Keys is 
+type Keys struct {
 	Time int64 `json:"time" dynamo:"time"`
 	Type Type  `json:"type" dynamo:"type"`
-	PPM  int   `json:"co2" dynamo:"co2"`
 }
 
-type Temp struct {
+// Co2 is co2 value
+type Co2 struct {
+	Keys
+	PPM int `json:"co2" dynamo:"co2"`
+}
 
+// Temp is temperature value
+type Temp struct {
+	Keys
+	Temp  float32 `json:"temperature"`
+	Humid float32 `json:"humidity"`
 }
 
 func table(name string) dynamo.Table {
@@ -71,10 +80,10 @@ func table(name string) dynamo.Table {
 }
 
 type mackerel struct {
-	HostID string `json:"hostId"`
-	Name   string `json:"name"`
-	Time   int64  `json:"time"`
-	Value  int    `json:"value"`
+	HostID string      `json:"hostId"`
+	Name   string      `json:"name"`
+	Time   int64       `json:"time"`
+	Value  interface{} `json:"value"`
 }
 
 func co2NotifyToMackerel(co2 Co2) error {
@@ -84,6 +93,23 @@ func co2NotifyToMackerel(co2 Co2) error {
 			Name:   "custom.co2.ppm",
 			Time:   co2.Time,
 			Value:  co2.PPM,
+		},
+	})
+}
+
+func tempNotifyToMackerel(temp Temp) error {
+	return notifyToMackerel([]mackerel{
+		{
+			HostID: HostID,
+			Name:   "custom.temp.temp",
+			Time:   temp.Time,
+			Value:  temp.Temp,
+		},
+		{
+			HostID: HostID,
+			Name:   "custom.temp.humid",
+			Time:   temp.Time,
+			Value:  temp.Humid,
 		},
 	})
 }
@@ -135,7 +161,7 @@ func co2AddHandler(w http.ResponseWriter, r *http.Request) {
 	co2.Time = t
 	co2.Type = TypeCo2
 
-	err = table(dataTable).Put(co2).Run()
+	err = table(co2Table).Put(co2).Run()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "value put failed: %v", err)
@@ -156,12 +182,50 @@ func co2AddHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "ok\n")
 }
 
+func tempAddHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "post")
+		return
+	}
+	t := time.Now().Unix()
+	var temp Temp
+	err := json.NewDecoder(r.Body).Decode(&temp)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "decode fail: %v", err)
+		return
+	}
+	temp.Time = t
+	temp.Type = TypeTemp
+
+	err = table(tempTable).Put(temp).Run()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "value put failed: %v", err)
+		return
+	}
+	err = putMgmtValue(TempMgmtID, t)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "mgmt put failed: %v", err)
+		return
+	}
+	err = tempNotifyToMackerel(temp)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "mackerel put failed: %v", err)
+		return
+	}
+	fmt.Fprint(w, "ok\n")
+}
+
 func putMgmtValue(id string, time int64) error {
 	m := MgmtLastValue{ID: id, Time: time}
 	return table(mgmtTable).Put(m).Run()
 }
 
-func lastHandler(w http.ResponseWriter, r *http.Request, id string) {
+func lastHandler(w http.ResponseWriter, r *http.Request, id string, from string) {
 	m := MgmtLastValue{}
 	err := table(mgmtTable).Get("id", id).One(&m)
 	if err != nil {
@@ -170,21 +234,8 @@ func lastHandler(w http.ResponseWriter, r *http.Request, id string) {
 		return
 	}
 
-	item := table(dataTable).Get("time", m.Time)
-	var value interface{}
-	switch id {
-	case Co2MgmtID:
-		var co2 Co2
-		err = item.One(&co2)
-		value = co2
-	case TempMgmtID:
-		var temp Temp
-		err = item.One(&temp)
-		value = temp
-	default:
-		err = fmt.Errorf("Never come!(lastHandler)")
-	}
-	
+	value := map[string]interface{}{}
+	err = table(from).Get("time", m.Time).One(&value)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "value get failed: %v", err)
@@ -194,13 +245,19 @@ func lastHandler(w http.ResponseWriter, r *http.Request, id string) {
 }
 
 func co2LastHandler(w http.ResponseWriter, r *http.Request) {
-	lastHandler(w, r, Co2MgmtID)
+	lastHandler(w, r, Co2MgmtID, co2Table)
+}
+
+func tempLastHandler(w http.ResponseWriter, r *http.Request) {
+	lastHandler(w, r, TempMgmtID, tempTable)
 }
 
 func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, "Hello!(momochi)") })
 	http.HandleFunc("/co2/add", co2AddHandler)
 	http.HandleFunc("/co2/last", co2LastHandler)
+	http.HandleFunc("/temp/add", tempAddHandler)
+	http.HandleFunc("/temp/last", tempLastHandler)
 	if os.Getenv("MOMOCHI_ENV") == "development" {
 		panic(http.ListenAndServe(":8000", nil))
 	} else {

@@ -11,6 +11,15 @@ Globals:
     Timeout: 5
 
 Resources:
+  ApiGateway:
+    Name: momochi
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Domain:
+        CertificateArn: arn:aws:acm:ap-northeast-1:486414336274:certificate/5b205c4d-aec3-4ee1-b5e5-3b338026dcf4
+        DomainName: momochi.dark-kuins.net
+      EndpointConfiguration:
   Function:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
@@ -21,49 +30,33 @@ Resources:
         Root:
           Type: Api
           Properties:
+            RestApiId: !Ref ApiGateway
             Path: /
             Method: any
         CatchAll:
           Type: Api
           Properties:
+            RestApiId: !Ref ApiGateway
             Path: /{proxy+}
             Method: any
       Policies:
         - DynamoDBCrudPolicy:
-           TableName: !Ref Table
+           TableName: home-atmosphere
         - DynamoDBCrudPolicy:
-           TableName: !Ref MgmtTable
+           TableName: home-atmosphere-temp
+        - DynamoDBCrudPolicy:
+           TableName: home-atmosphere-mgmt
       Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
         Variables:
-          HOST_ID: XXXXX
-          API_KEY: XXXXX
+          HOST_ID: xxx
+          API_KEY: xxx
           DYNAMODB_ENDPOINT: ""
-          DYNAMODB_TABLE: !Ref Table
-          DYNAMODB_MGMT_TABLE: !Ref MgmtTable
-  Table:
-    Type: AWS::Serverless::SimpleTable
-    Properties:
-      TableName: home-atmosphere
-      PrimaryKey:
-        Name: time
-        Type: Number
-      ProvisionedThroughput:
-        ReadCapacityUnits: 1
-        WriteCapacityUnits: 1
-  MgmtTable:
-    Type: AWS::Serverless::SimpleTable
-    Properties:
-      TableName: home-atmosphere-mgmt
-      PrimaryKey:
-        Name: id
-        Type: String
-      ProvisionedThroughput:
-        ReadCapacityUnits: 1
-        WriteCapacityUnits: 1
-
+          DYNAMODB_TABLE: home-atmosphere
+          DYNAMODB_TEMP_TABLE: home-atmosphere-temp
+          DYNAMODB_MGMT_TABLE: home-atmosphere-mgmt
 Outputs:
   API:
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
   Function:
     Value: !GetAtt Function.Arn
   FunctionIamRole:
