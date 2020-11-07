@@ -1,4 +1,4 @@
-module momochi
+module github.com/nna774/momochi
 
 go 1.13
 
