@@ -11,15 +11,12 @@ import (
 	"time"
 
 	"github.com/akrylysov/algnhsa"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/guregu/dynamo"
 
 	"github.com/nna774/momochi/types"
+	"github.com/nna774/momochi/utils"
 )
 
 var (
-	endpoint  = os.Getenv("DYNAMODB_ENDPOINT")
 	co2Table  = os.Getenv("DYNAMODB_TABLE")
 	tempTable = os.Getenv("DYNAMODB_TEMP_TABLE")
 	mgmtTable = os.Getenv("DYNAMODB_MGMT_TABLE")
@@ -31,15 +28,6 @@ var (
 
 	mackerelEndpoint = "https://mackerel.io/api/v0/tsdb"
 )
-
-func table(name string) dynamo.Table {
-	cfg := aws.NewConfig()
-	if endpoint != "" {
-		cfg = cfg.WithEndpoint(endpoint)
-	}
-	db := dynamo.New(session.New(), cfg)
-	return db.Table(name)
-}
 
 type mackerel struct {
 	HostID string      `json:"hostId"`
@@ -123,7 +111,7 @@ func co2AddHandler(w http.ResponseWriter, r *http.Request) {
 	co2.Time = t
 	co2.Type = types.TypeCo2
 
-	err = table(co2Table).Put(co2).Run()
+	err = utils.Table(co2Table).Put(co2).Run()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "value put failed: %v", err)
@@ -161,7 +149,7 @@ func tempAddHandler(w http.ResponseWriter, r *http.Request) {
 	temp.Time = t
 	temp.Type = types.TypeTemp
 
-	err = table(tempTable).Put(temp).Run()
+	err = utils.Table(tempTable).Put(temp).Run()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "value put failed: %v", err)
@@ -184,12 +172,12 @@ func tempAddHandler(w http.ResponseWriter, r *http.Request) {
 
 func putMgmtValue(id string, time int64) error {
 	m := types.MgmtLastValue{ID: id, Time: time}
-	return table(mgmtTable).Put(m).Run()
+	return utils.Table(mgmtTable).Put(m).Run()
 }
 
 func lastHandler(w http.ResponseWriter, r *http.Request, id string, from string) {
 	m := types.MgmtLastValue{}
-	err := table(mgmtTable).Get("id", id).One(&m)
+	err := utils.Table(mgmtTable).Get("id", id).One(&m)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "mgmt get failed: %v", err)
@@ -197,7 +185,7 @@ func lastHandler(w http.ResponseWriter, r *http.Request, id string, from string)
 	}
 
 	value := map[string]interface{}{}
-	err = table(from).Get("time", m.Time).One(&value)
+	err = utils.Table(from).Get("time", m.Time).One(&value)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "value get failed: %v", err)
