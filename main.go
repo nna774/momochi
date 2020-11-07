@@ -14,6 +14,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/guregu/dynamo"
+
+	"github.com/nna774/momochi/types"
 )
 
 var (
@@ -29,46 +31,6 @@ var (
 
 	mackerelEndpoint = "https://mackerel.io/api/v0/tsdb"
 )
-
-// Type is type of value
-type Type string
-
-const (
-	// TypeCo2 is type of co2
-	TypeCo2 Type = "co2"
-	// Co2MgmtID is manegement id of co2
-	Co2MgmtID = "co2-latest"
-
-	// TypeTemp is type of temp
-	TypeTemp Type = "temperature"
-	// TempMgmtID is manegement id of temp
-	TempMgmtID = "temperature-latest"
-)
-
-// MgmtLastValue is last value of id
-type MgmtLastValue struct {
-	ID   string `json:"id" dynamo:"id"`
-	Time int64  `json:"time" dynamo:"time"`
-}
-
-// Keys is 
-type Keys struct {
-	Time int64 `json:"time" dynamo:"time"`
-	Type Type  `json:"type" dynamo:"type"`
-}
-
-// Co2 is co2 value
-type Co2 struct {
-	Keys
-	PPM int `json:"co2" dynamo:"co2"`
-}
-
-// Temp is temperature value
-type Temp struct {
-	Keys
-	Temp  float32 `json:"temperature"`
-	Humid float32 `json:"humidity"`
-}
 
 func table(name string) dynamo.Table {
 	cfg := aws.NewConfig()
@@ -86,7 +48,7 @@ type mackerel struct {
 	Value  interface{} `json:"value"`
 }
 
-func co2NotifyToMackerel(co2 Co2) error {
+func co2NotifyToMackerel(co2 types.Co2) error {
 	return notifyToMackerel([]mackerel{
 		{
 			HostID: HostID,
@@ -97,7 +59,7 @@ func co2NotifyToMackerel(co2 Co2) error {
 	})
 }
 
-func tempNotifyToMackerel(temp Temp) error {
+func tempNotifyToMackerel(temp types.Temp) error {
 	return notifyToMackerel([]mackerel{
 		{
 			HostID: HostID,
@@ -146,7 +108,7 @@ func co2AddHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	t := time.Now().Unix()
-	var co2 Co2
+	var co2 types.Co2
 	err := json.NewDecoder(r.Body).Decode(&co2)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -159,7 +121,7 @@ func co2AddHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	co2.Time = t
-	co2.Type = TypeCo2
+	co2.Type = types.TypeCo2
 
 	err = table(co2Table).Put(co2).Run()
 	if err != nil {
@@ -167,7 +129,7 @@ func co2AddHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "value put failed: %v", err)
 		return
 	}
-	err = putMgmtValue(Co2MgmtID, t)
+	err = putMgmtValue(types.Co2MgmtID, t)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "mgmt put failed: %v", err)
@@ -189,7 +151,7 @@ func tempAddHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	t := time.Now().Unix()
-	var temp Temp
+	var temp types.Temp
 	err := json.NewDecoder(r.Body).Decode(&temp)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -197,7 +159,7 @@ func tempAddHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	temp.Time = t
-	temp.Type = TypeTemp
+	temp.Type = types.TypeTemp
 
 	err = table(tempTable).Put(temp).Run()
 	if err != nil {
@@ -205,7 +167,7 @@ func tempAddHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "value put failed: %v", err)
 		return
 	}
-	err = putMgmtValue(TempMgmtID, t)
+	err = putMgmtValue(types.TempMgmtID, t)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "mgmt put failed: %v", err)
@@ -221,12 +183,12 @@ func tempAddHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func putMgmtValue(id string, time int64) error {
-	m := MgmtLastValue{ID: id, Time: time}
+	m := types.MgmtLastValue{ID: id, Time: time}
 	return table(mgmtTable).Put(m).Run()
 }
 
 func lastHandler(w http.ResponseWriter, r *http.Request, id string, from string) {
-	m := MgmtLastValue{}
+	m := types.MgmtLastValue{}
 	err := table(mgmtTable).Get("id", id).One(&m)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -245,11 +207,11 @@ func lastHandler(w http.ResponseWriter, r *http.Request, id string, from string)
 }
 
 func co2LastHandler(w http.ResponseWriter, r *http.Request) {
-	lastHandler(w, r, Co2MgmtID, co2Table)
+	lastHandler(w, r, types.Co2MgmtID, co2Table)
 }
 
 func tempLastHandler(w http.ResponseWriter, r *http.Request) {
-	lastHandler(w, r, TempMgmtID, tempTable)
+	lastHandler(w, r, types.TempMgmtID, tempTable)
 }
 
 func main() {
