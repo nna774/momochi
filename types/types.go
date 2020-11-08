@@ -36,6 +36,6 @@ type Co2 struct {
 // Temp is temperature value
 type Temp struct {
 	Keys
-	Temp  float32 `json:"temperature"`
-	Humid float32 `json:"humidity"`
+	Temp  float32 `json:"temperature" dynamo:"temperature"`
+	Humid float32 `json:"humidity" dynamo:"humidity"`
 }
