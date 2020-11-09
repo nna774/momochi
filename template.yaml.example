@@ -41,9 +41,7 @@ Resources:
             Method: any
       Policies:
         - DynamoDBCrudPolicy:
-           TableName: home-atmosphere
-        - DynamoDBCrudPolicy:
-           TableName: home-atmosphere-temp
+           TableName: momochi
         - DynamoDBCrudPolicy:
            TableName: home-atmosphere-mgmt
       Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
@@ -51,8 +49,7 @@ Resources:
           HOST_ID: xxx
           API_KEY: xxx
           DYNAMODB_ENDPOINT: ""
-          DYNAMODB_TABLE: home-atmosphere
-          DYNAMODB_TEMP_TABLE: home-atmosphere-temp
+          DYNAMODB_TABLE: momochi
           DYNAMODB_MGMT_TABLE: home-atmosphere-mgmt
 Outputs:
   API:

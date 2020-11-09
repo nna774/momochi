@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/akrylysov/algnhsa"
+	"github.com/guregu/dynamo"
 
 	"github.com/nna774/momochi/types"
 	"github.com/nna774/momochi/utils"
@@ -18,7 +19,7 @@ import (
 
 var (
 	co2Table  = os.Getenv("DYNAMODB_TABLE")
-	tempTable = os.Getenv("DYNAMODB_TEMP_TABLE")
+	tempTable = os.Getenv("DYNAMODB_TABLE")
 	mgmtTable = os.Getenv("DYNAMODB_MGMT_TABLE")
 
 	// HostID is mackerel Host ID
@@ -175,7 +176,7 @@ func putMgmtValue(id string, time int64) error {
 	return utils.Table(mgmtTable).Put(m).Run()
 }
 
-func lastHandler(w http.ResponseWriter, r *http.Request, id string, from string) {
+func lastHandler(w http.ResponseWriter, r *http.Request, id string, t types.Type, from string) {
 	m := types.MgmtLastValue{}
 	err := utils.Table(mgmtTable).Get("id", id).One(&m)
 	if err != nil {
@@ -185,7 +186,7 @@ func lastHandler(w http.ResponseWriter, r *http.Request, id string, from string)
 	}
 
 	value := map[string]interface{}{}
-	err = utils.Table(from).Get("time", m.Time).One(&value)
+	err = utils.Table(from).Get("type", t).Range("time", dynamo.Equal, m.Time).One(&value)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "value get failed: %v", err)
@@ -195,11 +196,11 @@ func lastHandler(w http.ResponseWriter, r *http.Request, id string, from string)
 }
 
 func co2LastHandler(w http.ResponseWriter, r *http.Request) {
-	lastHandler(w, r, types.Co2MgmtID, co2Table)
+	lastHandler(w, r, types.Co2MgmtID, types.TypeCo2, co2Table)
 }
 
 func tempLastHandler(w http.ResponseWriter, r *http.Request) {
-	lastHandler(w, r, types.TempMgmtID, tempTable)
+	lastHandler(w, r, types.TempMgmtID, types.TypeTemp, tempTable)
 }
 
 func main() {
