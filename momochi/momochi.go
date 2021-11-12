@@ -80,7 +80,7 @@ func NewClient(e string) MomochiClient {
 }
 
 func (m *momochiClient) PostTemp(t Temp) (*http.Response, error) {
-	uri := m.Endpoint + "/co2/add"
+	uri := m.Endpoint + "/temp/add"
 	req, err := http.NewRequest(http.MethodPost, uri, t.toJSON())
 	if err != nil {
 		return nil, err
