@@ -1,8 +1,16 @@
 all: app
 
+SAM := sam
+REGION := ap-northeast-1
+BUCKET := nana-lambda
+
+STACK_NAME := momochi
+
 app:
 	go build
 
-deploy: app
-	sam package --template-file template.yaml --s3-bucket nana-lambda --output-template-file packaged-template.yml
-	sam deploy --template-file packaged-template.yml --capabilities CAPABILITY_IAM --region ap-northeast-1 --stack-name momochi
+app-for-deploy:
+	GOOS=linux go build -o main
+
+deploy: app-for-deploy
+	$(SAM) deploy --region $(REGION) --s3-bucket $(BUCKET) --capabilities CAPABILITY_IAM --template-file template.yaml --stack-name $(STACK_NAME)
