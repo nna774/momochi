@@ -13,7 +13,7 @@ import (
 	"github.com/akrylysov/algnhsa"
 	"github.com/guregu/dynamo"
 
-	"github.com/nna774/momochi/types"
+	"github.com/nna774/momochi/momochi"
 	"github.com/nna774/momochi/utils"
 )
 
@@ -37,7 +37,7 @@ type mackerel struct {
 	Value  interface{} `json:"value"`
 }
 
-func co2NotifyToMackerel(co2 types.Co2) error {
+func co2NotifyToMackerel(co2 momochi.Co2) error {
 	return notifyToMackerel([]mackerel{
 		{
 			HostID: HostID,
@@ -48,7 +48,7 @@ func co2NotifyToMackerel(co2 types.Co2) error {
 	})
 }
 
-func tempNotifyToMackerel(temp types.Temp) error {
+func tempNotifyToMackerel(temp momochi.Temp) error {
 	return notifyToMackerel([]mackerel{
 		{
 			HostID: HostID,
@@ -97,7 +97,7 @@ func co2AddHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	t := time.Now().Unix()
-	var co2 types.Co2
+	var co2 momochi.Co2
 	err := json.NewDecoder(r.Body).Decode(&co2)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -110,7 +110,7 @@ func co2AddHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	co2.Time = t
-	co2.Type = types.TypeCo2
+	co2.Type = momochi.TypeCo2
 
 	err = utils.Table(co2Table).Put(co2).Run()
 	if err != nil {
@@ -118,7 +118,7 @@ func co2AddHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "value put failed: %v", err)
 		return
 	}
-	err = putMgmtValue(types.Co2MgmtID, t)
+	err = putMgmtValue(momochi.Co2MgmtID, t)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "mgmt put failed: %v", err)
@@ -140,7 +140,7 @@ func tempAddHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	t := time.Now().Unix()
-	var temp types.Temp
+	var temp momochi.Temp
 	err := json.NewDecoder(r.Body).Decode(&temp)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -148,7 +148,7 @@ func tempAddHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	temp.Time = t
-	temp.Type = types.TypeTemp
+	temp.Type = momochi.TypeTemp
 
 	err = utils.Table(tempTable).Put(temp).Run()
 	if err != nil {
@@ -156,7 +156,7 @@ func tempAddHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "value put failed: %v", err)
 		return
 	}
-	err = putMgmtValue(types.TempMgmtID, t)
+	err = putMgmtValue(momochi.TempMgmtID, t)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "mgmt put failed: %v", err)
@@ -172,12 +172,12 @@ func tempAddHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func putMgmtValue(id string, time int64) error {
-	m := types.MgmtLastValue{ID: id, Time: time}
+	m := momochi.MgmtLastValue{ID: id, Time: time}
 	return utils.Table(mgmtTable).Put(m).Run()
 }
 
-func lastHandler(w http.ResponseWriter, r *http.Request, id string, t types.Type, from string) {
-	m := types.MgmtLastValue{}
+func lastHandler(w http.ResponseWriter, r *http.Request, id string, t momochi.Type, from string) {
+	m := momochi.MgmtLastValue{}
 	err := utils.Table(mgmtTable).Get("id", id).One(&m)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -196,11 +196,11 @@ func lastHandler(w http.ResponseWriter, r *http.Request, id string, t types.Type
 }
 
 func co2LastHandler(w http.ResponseWriter, r *http.Request) {
-	lastHandler(w, r, types.Co2MgmtID, types.TypeCo2, co2Table)
+	lastHandler(w, r, momochi.Co2MgmtID, momochi.TypeCo2, co2Table)
 }
 
 func tempLastHandler(w http.ResponseWriter, r *http.Request) {
-	lastHandler(w, r, types.TempMgmtID, types.TypeTemp, tempTable)
+	lastHandler(w, r, momochi.TempMgmtID, momochi.TypeTemp, tempTable)
 }
 
 func main() {
