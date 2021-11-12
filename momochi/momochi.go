@@ -67,8 +67,8 @@ func NewTemp(temp float32, humid float32) Temp {
 }
 
 type MomochiClient interface {
-	PostTemp(Temp) error
-	PostCo2(Co2) error
+	PostTemp(Temp) (*http.Response, error)
+	PostCo2(Co2) (*http.Response, error)
 }
 
 type momochiClient struct {
@@ -79,21 +79,16 @@ func NewClient(e string) MomochiClient {
 	return &momochiClient{Endpoint: e}
 }
 
-func (m *momochiClient) PostTemp(t Temp) error {
+func (m *momochiClient) PostTemp(t Temp) (*http.Response, error) {
 	uri := m.Endpoint + "/co2/add"
 	req, err := http.NewRequest(http.MethodPost, uri, t.toJSON())
 	if err != nil {
-		return err
+		return nil, err
 	}
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	res.Body.Close()
-	return nil
+	return http.DefaultClient.Do(req)
 }
-func (m *momochiClient) PostCo2(t Co2) error {
-	return fmt.Errorf("unimpled")
+func (m *momochiClient) PostCo2(t Co2) (*http.Response, error) {
+	return nil, fmt.Errorf("unimpled")
 }
 
 var _ MomochiClient = (*momochiClient)(nil)
