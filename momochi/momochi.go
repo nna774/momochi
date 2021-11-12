@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
 // Type is type of value
@@ -52,6 +53,17 @@ func (t *Temp) toJSON() io.Reader {
 	buf := &bytes.Buffer{}
 	json.NewEncoder(buf).Encode(t)
 	return buf
+}
+
+func NewTemp(temp float32, humid float32) Temp {
+	return Temp{
+		Keys: Keys{
+			Type: TypeTemp,
+			Time: time.Now().Unix(),
+		},
+		Temp:  temp,
+		Humid: humid,
+	}
 }
 
 type MomochiClient interface {
