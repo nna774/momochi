@@ -75,7 +75,7 @@ type momochiClient struct {
 	Endpoint string
 }
 
-func NewMomochiClient(e string) MomochiClient {
+func NewClient(e string) MomochiClient {
 	return &momochiClient{Endpoint: e}
 }
 
