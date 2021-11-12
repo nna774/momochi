@@ -22,56 +22,50 @@ var (
 	tempTable = os.Getenv("DYNAMODB_TABLE")
 	mgmtTable = os.Getenv("DYNAMODB_MGMT_TABLE")
 
-	// HostID is mackerel Host ID
-	HostID = os.Getenv("HOST_ID")
 	// APIKey is mackerel API Key
 	APIKey = os.Getenv("API_KEY")
 
-	mackerelEndpoint = "https://mackerel.io/api/v0/tsdb"
+	mackerelEndpoint = func(name string) string { return "https://api.mackerelio.com/api/v0/services/" + name + "/tsdb" }
 )
 
 type mackerel struct {
-	HostID string      `json:"hostId"`
-	Name   string      `json:"name"`
-	Time   int64       `json:"time"`
-	Value  interface{} `json:"value"`
+	Name  string      `json:"name"`
+	Time  int64       `json:"time"`
+	Value interface{} `json:"value"`
 }
 
 func co2NotifyToMackerel(co2 momochi.Co2) error {
-	return notifyToMackerel([]mackerel{
+	return notifyToMackerel("co2", []mackerel{
 		{
-			HostID: HostID,
-			Name:   "custom.co2.ppm",
-			Time:   co2.Time,
-			Value:  co2.PPM,
+			Name:  "co2.ppm",
+			Time:  co2.Time,
+			Value: co2.PPM,
 		},
 	})
 }
 
 func tempNotifyToMackerel(temp momochi.Temp) error {
-	return notifyToMackerel([]mackerel{
+	return notifyToMackerel("temp-humid", []mackerel{
 		{
-			HostID: HostID,
-			Name:   "custom.temp.temp",
-			Time:   temp.Time,
-			Value:  temp.Temp,
+			Name:  "temperature",
+			Time:  temp.Time,
+			Value: temp.Temp,
 		},
 		{
-			HostID: HostID,
-			Name:   "custom.temp.humid",
-			Time:   temp.Time,
-			Value:  temp.Humid,
+			Name:  "humidity",
+			Time:  temp.Time,
+			Value: temp.Humid,
 		},
 	})
 }
 
-func notifyToMackerel(vals []mackerel) error {
+func notifyToMackerel(service string, vals []mackerel) error {
 	var buf bytes.Buffer
 	err := json.NewEncoder(&buf).Encode(vals)
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequest(http.MethodPost, mackerelEndpoint, &buf)
+	req, err := http.NewRequest(http.MethodPost, mackerelEndpoint(service), &buf)
 	if err != nil {
 		return err
 	}
