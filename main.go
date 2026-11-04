@@ -230,6 +230,6 @@ func main() {
 	if os.Getenv("MOMOCHI_ENV") == "development" {
 		panic(http.ListenAndServe(":8000", nil))
 	} else {
-		algnhsa.ListenAndServe(nil, &algnhsa.Options{RequestType: algnhsa.RequestTypeAPIGateway})
+		algnhsa.ListenAndServe(nil, &algnhsa.Options{RequestType: algnhsa.RequestTypeAPIGatewayV1})
 	}
 }
