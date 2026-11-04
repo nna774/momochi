@@ -197,12 +197,36 @@ func tempLastHandler(w http.ResponseWriter, r *http.Request) {
 	lastHandler(w, r, momochi.TempMgmtID, momochi.TypeTemp, tempTable)
 }
 
+// metricsHandler は最新の温湿度を Prometheus のテキスト形式で返す。
+// momo が 2 分おきにしか書かないので、古さを判断できるよう最終更新時刻も出す。
+func metricsHandler(w http.ResponseWriter, r *http.Request) {
+	m := momochi.MgmtLastValue{}
+	err := utils.Table(mgmtTable).Get("id", momochi.TempMgmtID).One(&m)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "mgmt get failed: %v", err)
+		return
+	}
+	var temp momochi.Temp
+	err = utils.Table(tempTable).Get("type", momochi.TypeTemp).Range("time", dynamo.Equal, m.Time).One(&temp)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "value get failed: %v", err)
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+	fmt.Fprintf(w, "# TYPE momochi_temperature_celsius gauge\nmomochi_temperature_celsius %v\n", temp.Temp)
+	fmt.Fprintf(w, "# TYPE momochi_humidity_percent gauge\nmomochi_humidity_percent %v\n", temp.Humid)
+	fmt.Fprintf(w, "# TYPE momochi_last_update_timestamp_seconds gauge\nmomochi_last_update_timestamp_seconds %d\n", temp.Time)
+}
+
 func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, "Hello!(momochi)") })
 	http.HandleFunc("/co2/add", co2AddHandler)
 	http.HandleFunc("/co2/last", co2LastHandler)
 	http.HandleFunc("/temp/add", tempAddHandler)
 	http.HandleFunc("/temp/last", tempLastHandler)
+	http.HandleFunc("/metrics", metricsHandler)
 	if os.Getenv("MOMOCHI_ENV") == "development" {
 		panic(http.ListenAndServe(":8000", nil))
 	} else {
